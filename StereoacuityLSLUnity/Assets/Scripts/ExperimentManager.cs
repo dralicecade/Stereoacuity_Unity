@@ -12,21 +12,55 @@ public class ExperimentManager : MonoBehaviour
     [Header("Instruction Text")]
     public TextMeshProUGUI instructionText;
 
+    [Header("Response UI")]
+    public GameObject responsePanel;
+
     [Header("TCP")]
     public TcpServerManager tcpServer;
 
     private bool trialRunning = false;
+    private bool responseReceived = false;
+
+    private string currentTargetSymbol;
+    private string response;
+    private float responseTime;
+
+    private void Start()
+    {
+        if (stimulusCube != null)
+            stimulusCube.SetActive(false);
+
+        if (responsePanel != null)
+            responsePanel.SetActive(false);
+
+        if (instructionText != null)
+        {
+            instructionText.gameObject.SetActive(true);
+            instructionText.text =
+                "Stereoacuity Test\n\n" +
+                "You will see a hidden shape briefly appear on the screen.\n\n" +
+                "Try to keep your head still and look toward the centre of the screen.\n\n" +
+                "After each stimulus, select the symbol you perceived.\n\n" +
+                "If you are unsure, please make your best guess.\n\n" +
+                "Waiting for the experiment to begin...";
+        }
+    }
 
     public void StartTrialFromTcp(int trialId, float value, string targetSymbol)
     {
-        Debug.Log($"Target symbol for this trial: {targetSymbol}");
-        
         if (trialRunning)
         {
             Debug.LogWarning("Trial trigger ignored because a trial is already running.");
-            tcpServer.SendMessageToClient($"ERROR,{trialId},TRIAL_ALREADY_RUNNING");
+
+            if (tcpServer != null)
+                tcpServer.SendMessageToClient($"ERROR,{trialId},TRIAL_ALREADY_RUNNING");
+
             return;
         }
+
+        currentTargetSymbol = targetSymbol;
+
+        Debug.Log($"Target symbol for this trial: {currentTargetSymbol}");
 
         StartCoroutine(RunTrial(trialId, value));
     }
@@ -34,80 +68,119 @@ public class ExperimentManager : MonoBehaviour
     private IEnumerator RunTrial(int trialId, float value)
     {
         trialRunning = true;
+        responseReceived = false;
 
-        string response = "";
-        float responseTime = -1f;
+        response = "";
+        responseTime = -1f;
 
-        stimulusCube.SetActive(false);
+        // Hide everything except the ready instruction
+        if (stimulusCube != null)
+            stimulusCube.SetActive(false);
+
+        if (responsePanel != null)
+            responsePanel.SetActive(false);
 
         if (instructionText != null)
         {
             instructionText.gameObject.SetActive(true);
-            instructionText.text = "Press 'Space' to start";
+            instructionText.text =
+                "Focus on the centre of the screen.\n\n" +
+                "Press SPACE when ready to begin.";
         }
 
-        tcpServer.SendMessageToClient($"TRIAL_READY,{trialId},OK");
+        if (tcpServer != null)
+            tcpServer.SendMessageToClient($"TRIAL_READY,{trialId},OK");
 
-        while (Keyboard.current == null || !Keyboard.current.spaceKey.wasPressedThisFrame)
+        // Wait for Space press
+        while (Keyboard.current == null ||
+               !Keyboard.current.spaceKey.wasPressedThisFrame)
         {
             yield return null;
         }
 
+        // Hide instructions
         if (instructionText != null)
-        {
             instructionText.gameObject.SetActive(false);
+
+        // Show stimulus
+        if (stimulusCube != null)
+        {
+            stimulusCube.SetActive(true);
+            stimulusCube.transform.position =
+                new Vector3(value * 0.01f, 0f, 3f);
         }
 
-        stimulusCube.SetActive(true);
-        stimulusCube.transform.position = new Vector3(value * 0.01f, 0f, 3f);
-
+        // Start stimulus timing
         float trialStartTime = Time.realtimeSinceStartup;
-        string unityStartWallClock = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff");
+        string unityStartWallClock =
+            DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff");
 
         Debug.Log($"Running trial {trialId}");
 
-        tcpServer.SendMessageToClient(
-            $"TRIAL_STARTED,{trialId},OK,{trialStartTime:F6},{unityStartWallClock}"
-        );
-
-        float maxResponseWindow = 5f;
-
-        while (Time.realtimeSinceStartup - trialStartTime < maxResponseWindow)
+        if (tcpServer != null)
         {
-            if (Keyboard.current != null && Keyboard.current.leftArrowKey.wasPressedThisFrame)
-            {
-                response = "LEFT";
-                responseTime = Time.realtimeSinceStartup;
-                break;
-            }
+            tcpServer.SendMessageToClient(
+                $"TRIAL_STARTED,{trialId},OK,{trialStartTime:F6},{unityStartWallClock}"
+            );
+        }
 
-            if (Keyboard.current != null && Keyboard.current.rightArrowKey.wasPressedThisFrame)
-            {
-                response = "RIGHT";
-                responseTime = Time.realtimeSinceStartup;
-                break;
-            }
+        // Stimulus visible for 2 seconds
+        yield return new WaitForSeconds(2f);
 
+        // Hide stimulus
+        if (stimulusCube != null)
+            stimulusCube.SetActive(false);
+
+        // Show response panel
+        responseReceived = false;
+
+        if (responsePanel != null)
+            responsePanel.SetActive(true);
+
+        // Wait for participant to click a symbol
+        while (!responseReceived)
+        {
             yield return null;
         }
 
-        stimulusCube.SetActive(false);
+        string unityResponseWallClock =
+            DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff");
 
-        if (response == "")
-        {
-            response = "NO_RESPONSE";
-            responseTime = Time.realtimeSinceStartup;
-        }
-
-        string unityResponseWallClock = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff");
         float rt = responseTime - trialStartTime;
 
-        Debug.Log($"Trial {trialId} complete. Response: {response}, RT: {rt:F3}");
-
-        tcpServer.SendMessageToClient(
-            $"TRIAL_COMPLETE,{trialId},{response},{rt:F6},{trialStartTime:F6},{responseTime:F6},{unityStartWallClock},{unityResponseWallClock}"
+        bool correct = string.Equals(
+            response,
+            currentTargetSymbol,
+            StringComparison.OrdinalIgnoreCase
         );
 
+        string accuracy = correct ? "CORRECT" : "INCORRECT";
+
+        Debug.Log(
+            $"Trial {trialId} complete. Target: {currentTargetSymbol}, " +
+            $"Response: {response}, {accuracy}, RT: {rt:F3}"
+        );
+
+        if (tcpServer != null)
+        {
+            tcpServer.SendMessageToClient(
+                $"TRIAL_COMPLETE,{trialId},{response},{accuracy},{rt:F6},{trialStartTime:F6},{responseTime:F6},{unityStartWallClock},{unityResponseWallClock}"
+            );
+        }
+
         trialRunning = false;
+    }
+
+    public void OnSymbolSelected(string selectedSymbol)
+    {
+        response = selectedSymbol;
+        responseTime = Time.realtimeSinceStartup;
+
+        if (responsePanel != null)
+            responsePanel.SetActive(false);
+
+        responseReceived = true;
+
+        Debug.Log($"Participant selected: {selectedSymbol}");
     }
 }

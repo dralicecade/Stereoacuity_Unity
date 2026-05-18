@@ -58,6 +58,8 @@ try
         matlabReceiveTime = NaT;
         matlabReceiveTime.Format = "yyyy-MM-dd HH:mm:ss.SSS";
 
+        accuracy = "";
+
         while toc < timeout
 
             if t.NumBytesAvailable > 0
@@ -79,13 +81,14 @@ try
                         parts = split(line, ",");
 
                         response = parts(3);
-                        rtSeconds = str2double(parts(4));
-                        unityStartTime = str2double(parts(5));
-                        unityResponseTime = str2double(parts(6));
-
-                        if numel(parts) >= 8
-                            unityStartWallClock = parts(7);
-                            unityResponseWallClock = parts(8);
+                        accuracy = parts(4);
+                        rtSeconds = str2double(parts(5));
+                        unityStartTime = str2double(parts(6));
+                        unityResponseTime = str2double(parts(7));
+                        
+                        if numel(parts) >= 9
+                            unityStartWallClock = parts(8);
+                            unityResponseWallClock = parts(9);
                         else
                             unityStartWallClock = "";
                             unityResponseWallClock = "";
@@ -118,6 +121,7 @@ try
             trialId, ...
             value, ...
             string(response), ...
+            string(accuracy), ...
             rtSeconds, ...
             unityStartTime, ...
             unityResponseTime, ...
@@ -130,6 +134,7 @@ try
                 'trialId', ...
                 'value', ...
                 'response', ...
+                'accuracy', ...
                 'rtSeconds', ...
                 'unityStartTime', ...
                 'unityResponseTime', ...
