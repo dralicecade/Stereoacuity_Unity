@@ -40,7 +40,7 @@ public class ExperimentManager : MonoBehaviour
                 "Stereoacuity Test\n\n" +
                 "You will see a hidden shape briefly appear on the screen.\n\n" +
                 "Try to keep your head still and look toward the centre of the screen.\n\n" +
-                "After each stimulus, select the symbol you perceived.\n\n" +
+                "After each trial, select the symbol you saw.\n\n" +
                 "If you are unsure, please make your best guess.\n\n" +
                 "Waiting for the experiment to begin...";
         }
@@ -84,8 +84,8 @@ public class ExperimentManager : MonoBehaviour
         {
             instructionText.gameObject.SetActive(true);
             instructionText.text =
-                "Focus on the centre of the screen.\n\n" +
-                "Press SPACE when ready to begin.";
+                "Focus on the centre of the screen.\n" +
+                "Press SPACE to start.";
         }
 
         if (tcpServer != null)
@@ -133,6 +133,8 @@ public class ExperimentManager : MonoBehaviour
 
         // Show response panel
         responseReceived = false;
+        if (instructionText != null)
+        instructionText.gameObject.SetActive(false);
 
         if (responsePanel != null)
             responsePanel.SetActive(true);

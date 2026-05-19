@@ -1,0 +1,7 @@
+Readme for Steven - what slaved what
+
+MATLAB gen image for display
+Set up data storage
+Unity told where to look for image, displays image gets participants reposnse
+Sends back to Unity
+MATLAB records and saves
