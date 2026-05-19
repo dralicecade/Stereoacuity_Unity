@@ -21,7 +21,12 @@ public class TcpServerManager : MonoBehaviour
     private ConcurrentQueue<string> messageQueue = new ConcurrentQueue<string>();
 
     [System.Serializable]
-    public class TrialStartEvent : UnityEvent<int, float, string> { }
+    public class ExperimentEndEvent : UnityEvent { }
+
+    public ExperimentEndEvent OnExperimentEnd;
+
+    [System.Serializable]
+    public class TrialStartEvent : UnityEvent<int, float, string, string> { }
 
     [Header("Events")]
     public TrialStartEvent OnTrialStart;
@@ -97,7 +102,15 @@ public class TcpServerManager : MonoBehaviour
 
         string[] parts = message.Split(',');
 
-        if (parts.Length < 4)
+        if (message == "EXPERIMENT_END")
+        {
+            Debug.Log("Experiment end message received.");
+            OnExperimentEnd?.Invoke();
+            SendMessageToClient("EXPERIMENT_END_RECEIVED,OK");
+            return;
+        }
+
+        if (parts.Length < 5)
         {
             SendMessageToClient("ERROR,INVALID_MESSAGE");
             return;
@@ -107,6 +120,7 @@ public class TcpServerManager : MonoBehaviour
         string trialId = parts[1];
         string value = parts[2];
         string targetSymbol = parts[3];
+        string stimulusPath = parts[4];
 
         if (command == "TRIAL_START")
         {
@@ -122,9 +136,9 @@ public class TcpServerManager : MonoBehaviour
                 return;
             }
 
-            Debug.Log($"Triggering trial. Trial ID: {parsedTrialId}, Value: {parsedValue}, Symbol: {targetSymbol}");
+            Debug.Log($"Triggering trial. Trial ID: {parsedTrialId}, Value: {parsedValue}, Symbol: {targetSymbol}, Path: {stimulusPath}");
 
-            OnTrialStart?.Invoke(parsedTrialId, parsedValue, targetSymbol);
+            OnTrialStart?.Invoke(parsedTrialId, parsedValue, targetSymbol, stimulusPath);
 
             SendMessageToClient($"TRIAL_STARTED,{parsedTrialId},OK");
         }

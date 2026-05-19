@@ -34,7 +34,23 @@ try
         value = trialValues(i);
         targetSymbol = trialSymbols(i);
 
-        msg = sprintf("TRIAL_START,%d,%g,%s", trialId, value, targetSymbol);
+        stimulusFolder = "C:\Users\alice.cade\Documents\Stereoacuity_Unity\Generated_Stimuli";
+
+        if ~exist(stimulusFolder, "dir")
+            mkdir(stimulusFolder);
+        end
+        
+        img = uint8(255 * ones(600, 600, 3));
+        
+        % Simple black square placeholder
+        img(250:350, 250:350, :) = 0;
+        
+        stimulusFilename = sprintf("trial_%03d_%s.png", trialId, targetSymbol);
+        stimulusPath = fullfile(stimulusFolder, stimulusFilename);
+        
+        imwrite(img, stimulusPath);
+
+        msg = sprintf("TRIAL_START,%d,%g,%s,%s", trialId, value, targetSymbol, stimulusPath);
 
         disp(" ");
         disp("Sending message:");
@@ -152,6 +168,13 @@ try
 
         pause(0.5);
     end
+
+    disp(" ");
+    disp("Sending experiment end message...");
+    
+    write(t, uint8(['EXPERIMENT_END' newline]));
+    
+    pause(0.2);
 
     outputFolder = "C:\Users\alice.cade\Documents\Stereoacuity_Unity\Participant_Data";
 

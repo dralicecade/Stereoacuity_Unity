@@ -1,13 +1,18 @@
 using System;
 using System.Collections;
+using System.IO;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.UI;
 using TMPro;
 
 public class ExperimentManager : MonoBehaviour
 {
     [Header("Stimulus")]
     public GameObject stimulusCube;
+
+    [Header("Stimulus Image")]
+    public RawImage stimulusImage;
 
     [Header("Instruction Text")]
     public TextMeshProUGUI instructionText;
@@ -30,6 +35,9 @@ public class ExperimentManager : MonoBehaviour
         if (stimulusCube != null)
             stimulusCube.SetActive(false);
 
+        if (stimulusImage != null)
+            stimulusImage.gameObject.SetActive(false);
+
         if (responsePanel != null)
             responsePanel.SetActive(false);
 
@@ -38,15 +46,15 @@ public class ExperimentManager : MonoBehaviour
             instructionText.gameObject.SetActive(true);
             instructionText.text =
                 "Stereoacuity Test\n\n" +
-                "You will see a hidden shape briefly appear on the screen.\n\n" +
-                "Try to keep your head still and look toward the centre of the screen.\n\n" +
-                "After each trial, select the symbol you saw.\n\n" +
-                "If you are unsure, please make your best guess.\n\n" +
-                "Waiting for the experiment to begin...";
+                "You will see a hidden shape briefly appear on the screen.\n" +
+                "Try to keep your head still and look toward the centre of the screen.\n" +
+                "After each trial, select the symbol you saw.\n" +
+                "If you are unsure, please make your best guess.\n" +
+                "Waiting to begin...";
         }
     }
 
-    public void StartTrialFromTcp(int trialId, float value, string targetSymbol)
+    public void StartTrialFromTcp(int trialId, float value, string targetSymbol, string stimulusPath)
     {
         if (trialRunning)
         {
@@ -61,11 +69,12 @@ public class ExperimentManager : MonoBehaviour
         currentTargetSymbol = targetSymbol;
 
         Debug.Log($"Target symbol for this trial: {currentTargetSymbol}");
+        Debug.Log($"Stimulus path: {stimulusPath}");
 
-        StartCoroutine(RunTrial(trialId, value));
+        StartCoroutine(RunTrial(trialId, value, stimulusPath));
     }
 
-    private IEnumerator RunTrial(int trialId, float value)
+    private IEnumerator RunTrial(int trialId, float value, string stimulusPath)
     {
         trialRunning = true;
         responseReceived = false;
@@ -73,9 +82,11 @@ public class ExperimentManager : MonoBehaviour
         response = "";
         responseTime = -1f;
 
-        // Hide everything except the ready instruction
         if (stimulusCube != null)
             stimulusCube.SetActive(false);
+
+        if (stimulusImage != null)
+            stimulusImage.gameObject.SetActive(false);
 
         if (responsePanel != null)
             responsePanel.SetActive(false);
@@ -84,33 +95,37 @@ public class ExperimentManager : MonoBehaviour
         {
             instructionText.gameObject.SetActive(true);
             instructionText.text =
-                "Focus on the centre of the screen.\n" +
+                "Focus on the centre of the screen.\n\n" +
                 "Press SPACE to start.";
         }
 
         if (tcpServer != null)
             tcpServer.SendMessageToClient($"TRIAL_READY,{trialId},OK");
 
-        // Wait for Space press
         while (Keyboard.current == null ||
                !Keyboard.current.spaceKey.wasPressedThisFrame)
         {
             yield return null;
         }
 
-        // Hide instructions
         if (instructionText != null)
             instructionText.gameObject.SetActive(false);
 
-        // Show stimulus
-        if (stimulusCube != null)
+        if (stimulusImage != null)
         {
-            stimulusCube.SetActive(true);
-            stimulusCube.transform.position =
-                new Vector3(value * 0.01f, 0f, 3f);
+            Texture2D tex = LoadTextureFromFile(stimulusPath);
+
+            if (tex != null)
+            {
+                stimulusImage.texture = tex;
+                stimulusImage.gameObject.SetActive(true);
+            }
+            else
+            {
+                Debug.LogError($"Could not load stimulus image: {stimulusPath}");
+            }
         }
 
-        // Start stimulus timing
         float trialStartTime = Time.realtimeSinceStartup;
         string unityStartWallClock =
             DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff");
@@ -124,22 +139,22 @@ public class ExperimentManager : MonoBehaviour
             );
         }
 
-        // Stimulus visible for 2 seconds
         yield return new WaitForSeconds(2f);
 
-        // Hide stimulus
+        if (stimulusImage != null)
+            stimulusImage.gameObject.SetActive(false);
+
         if (stimulusCube != null)
             stimulusCube.SetActive(false);
 
-        // Show response panel
         responseReceived = false;
+
         if (instructionText != null)
-        instructionText.gameObject.SetActive(false);
+            instructionText.gameObject.SetActive(false);
 
         if (responsePanel != null)
             responsePanel.SetActive(true);
 
-        // Wait for participant to click a symbol
         while (!responseReceived)
         {
             yield return null;
@@ -171,6 +186,12 @@ public class ExperimentManager : MonoBehaviour
         }
 
         trialRunning = false;
+
+        if (instructionText != null)
+        {
+            instructionText.gameObject.SetActive(true);
+            instructionText.text = "Waiting for the next trial...";
+        }
     }
 
     public void OnSymbolSelected(string selectedSymbol)
@@ -184,5 +205,46 @@ public class ExperimentManager : MonoBehaviour
         responseReceived = true;
 
         Debug.Log($"Participant selected: {selectedSymbol}");
+    }
+
+    private Texture2D LoadTextureFromFile(string path)
+    {
+        if (!File.Exists(path))
+        {
+            Debug.LogError($"Stimulus file not found: {path}");
+            return null;
+        }
+
+        byte[] fileData = File.ReadAllBytes(path);
+
+        Texture2D tex = new Texture2D(2, 2);
+        bool loaded = tex.LoadImage(fileData);
+
+        return loaded ? tex : null;
+    }
+
+    public void EndExperiment()
+    {
+        Debug.Log("Experiment complete.");
+
+        trialRunning = false;
+        responseReceived = false;
+
+        if (stimulusCube != null)
+            stimulusCube.SetActive(false);
+
+        if (stimulusImage != null)
+            stimulusImage.gameObject.SetActive(false);
+
+        if (responsePanel != null)
+            responsePanel.SetActive(false);
+
+        if (instructionText != null)
+        {
+            instructionText.gameObject.SetActive(true);
+            instructionText.text =
+                "Test Complete\n\n" +
+                "Thank you for participating.";
+        }
     }
 }
