@@ -34,21 +34,74 @@ try
         value = trialValues(i);
         targetSymbol = trialSymbols(i);
 
-        stimulusFolder = "C:\Users\alice.cade\Documents\Stereoacuity_Unity\Generated_Stimuli";
-
-        if ~exist(stimulusFolder, "dir")
-            mkdir(stimulusFolder);
+        symbolSourceFolder =  "C:\Users\alice.cade\Documents\Stereoacuity_Unity\StereoacuityLSLUnity\Assets\Stimuli\TAO_Symbols\tiffs - reg";
+        
+        sourceImagePath = fullfile(symbolSourceFolder, targetSymbol + "_reg.tif");
+        
+        if ~exist(sourceImagePath, "file")
+            error("Could not find symbol image: %s", sourceImagePath);
         end
         
-        img = uint8(255 * ones(600, 600, 3));
+        symbolImg = imread(sourceImagePath);
         
-        % Simple black square placeholder
-        img(250:350, 250:350, :) = 0;
+        if ndims(symbolImg) == 3
+            symbolGray = rgb2gray(symbolImg);
+        else
+            symbolGray = symbolImg;
+        end
         
-        stimulusFilename = sprintf("trial_%03d_%s.png", trialId, targetSymbol);
-        stimulusPath = fullfile(stimulusFolder, stimulusFilename);
+        symbolGray = im2double(symbolGray);
         
-        imwrite(img, stimulusPath);
+        % Parameters
+        canvasSize = 600;
+        symbolSize = 280;
+        disparityPx = 40;  % exaggerated for debugging
+        
+        symbolGray = imresize(symbolGray, [symbolSize symbolSize]);
+        
+        % Assumes dark symbol on light background
+        symbolMask = symbolGray < 0.5;
+        
+        % Use the same noise carrier for both eyes
+        baseNoise = rand(canvasSize, canvasSize);
+        
+        leftImg = baseNoise;
+        rightImg = baseNoise;
+        
+        rowStart = round((canvasSize - symbolSize) / 2) + 1;
+        centreColStart = round((canvasSize - symbolSize) / 2) + 1;
+        
+        leftColStart = centreColStart - round(disparityPx / 2);
+        rightColStart = centreColStart + round(disparityPx / 2);
+        
+        rows = rowStart:(rowStart + symbolSize - 1);
+        leftCols = leftColStart:(leftColStart + symbolSize - 1);
+        rightCols = rightColStart:(rightColStart + symbolSize - 1);
+        
+        symbolContrast = 0.35;
+        
+        leftPatch = leftImg(rows, leftCols);
+        leftPatch(symbolMask) = leftPatch(symbolMask) * symbolContrast;
+        leftImg(rows, leftCols) = leftPatch;
+        
+        rightPatch = rightImg(rows, rightCols);
+        rightPatch(symbolMask) = rightPatch(symbolMask) * symbolContrast;
+        rightImg(rows, rightCols) = rightPatch;
+        
+        leftRGB = uint8(255 * repmat(leftImg, 1, 1, 3));
+        rightRGB = uint8(255 * repmat(rightImg, 1, 1, 3));
+        
+        leftFilename = sprintf("trial_%03d_%s_LEFT.png", trialId, targetSymbol);
+        rightFilename = sprintf("trial_%03d_%s_RIGHT.png", trialId, targetSymbol);
+        
+        leftStimulusPath = fullfile(stimulusFolder, leftFilename);
+        rightStimulusPath = fullfile(stimulusFolder, rightFilename);
+        
+        imwrite(leftRGB, leftStimulusPath);
+        imwrite(rightRGB, rightStimulusPath);
+        
+        % For now, keep sending the left image to Unity so the existing pipeline still works.
+        stimulusPath = leftStimulusPath;
 
         msg = sprintf("TRIAL_START,%d,%g,%s,%s", trialId, value, targetSymbol, stimulusPath);
 
@@ -166,7 +219,7 @@ try
         fprintf("Trial %d complete: %s, RT = %.3f s\n", ...
             trialId, response, rtSeconds);
 
-        pause(0.5);
+        pause(0.1);
     end
 
     disp(" ");

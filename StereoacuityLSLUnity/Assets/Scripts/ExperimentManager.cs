@@ -190,7 +190,7 @@ public class ExperimentManager : MonoBehaviour
         if (instructionText != null)
         {
             instructionText.gameObject.SetActive(true);
-            instructionText.text = "Waiting for the next trial...";
+            instructionText.text = "Preparing the next trial...";
         }
     }
 
