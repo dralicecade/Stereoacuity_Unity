@@ -4,6 +4,7 @@ clc;
 disp("MATLAB current folder:");
 disp(pwd);
 
+%% Participant
 participantId = input("Enter participant ID: ", "s");
 
 if strlength(strtrim(participantId)) == 0
@@ -12,6 +13,50 @@ end
 
 participantId = string(strtrim(participantId));
 
+%% Portable project paths
+thisFile = mfilename("fullpath");
+matlabFolder = fileparts(thisFile);
+repoRoot = fileparts(matlabFolder);
+
+unityProjectRoot = fullfile(repoRoot, "StereoacuityLSLUnity");
+
+symbolSourceFolder = fullfile( ...
+    unityProjectRoot, ...
+    "Assets", ...
+    "Stimuli", ...
+    "TAO_Symbols", ...
+    "tiffs - reg");
+
+stimulusFolder = fullfile( ...
+    unityProjectRoot, ...
+    "Assets", ...
+    "Stimuli", ...
+    "Generated");
+
+outputFolder = fullfile(repoRoot, "Participant_Data");
+
+if ~isfolder(symbolSourceFolder)
+    error("Symbol source folder not found: %s", symbolSourceFolder);
+end
+
+if ~isfolder(stimulusFolder)
+    mkdir(stimulusFolder);
+end
+
+if ~isfolder(outputFolder)
+    mkdir(outputFolder);
+end
+
+disp("Repository root:");
+disp(repoRoot);
+disp("Symbol source folder:");
+disp(symbolSourceFolder);
+disp("Generated stimulus folder:");
+disp(stimulusFolder);
+disp("Output folder:");
+disp(outputFolder);
+
+%% TCP settings
 host = "127.0.0.1";
 port = 5005;
 
@@ -34,76 +79,72 @@ try
         value = trialValues(i);
         targetSymbol = trialSymbols(i);
 
-        symbolSourceFolder =  "C:\Users\alice.cade\Documents\Stereoacuity_Unity\StereoacuityLSLUnity\Assets\Stimuli\TAO_Symbols\tiffs - reg";
-        
         sourceImagePath = fullfile(symbolSourceFolder, targetSymbol + "_reg.tif");
-        
-        if ~exist(sourceImagePath, "file")
+
+        if ~isfile(sourceImagePath)
             error("Could not find symbol image: %s", sourceImagePath);
         end
-        
+
         symbolImg = imread(sourceImagePath);
-        
+
         if ndims(symbolImg) == 3
             symbolGray = rgb2gray(symbolImg);
         else
             symbolGray = symbolImg;
         end
-        
+
         symbolGray = im2double(symbolGray);
-        
-        % Parameters
+
+        %% Stimulus generation
         canvasSize = 600;
         symbolSize = 280;
-        disparityPx = 40;  % exaggerated for debugging
-        
+        disparityPx = value;
+
         symbolGray = imresize(symbolGray, [symbolSize symbolSize]);
-        
+
         % Assumes dark symbol on light background
         symbolMask = symbolGray < 0.5;
-        
-        % Use the same noise carrier for both eyes
+
+        % Use same noise carrier for both eyes
         baseNoise = rand(canvasSize, canvasSize);
-        
+
         leftImg = baseNoise;
         rightImg = baseNoise;
-        
+
         rowStart = round((canvasSize - symbolSize) / 2) + 1;
         centreColStart = round((canvasSize - symbolSize) / 2) + 1;
-        
+
         leftColStart = centreColStart - round(disparityPx / 2);
         rightColStart = centreColStart + round(disparityPx / 2);
-        
+
         rows = rowStart:(rowStart + symbolSize - 1);
         leftCols = leftColStart:(leftColStart + symbolSize - 1);
         rightCols = rightColStart:(rightColStart + symbolSize - 1);
-        
+
         symbolContrast = 0.35;
-        
+
         leftPatch = leftImg(rows, leftCols);
         leftPatch(symbolMask) = leftPatch(symbolMask) * symbolContrast;
         leftImg(rows, leftCols) = leftPatch;
-        
+
         rightPatch = rightImg(rows, rightCols);
         rightPatch(symbolMask) = rightPatch(symbolMask) * symbolContrast;
         rightImg(rows, rightCols) = rightPatch;
-        
+
         leftRGB = uint8(255 * repmat(leftImg, 1, 1, 3));
         rightRGB = uint8(255 * repmat(rightImg, 1, 1, 3));
-        
+
         leftFilename = sprintf("trial_%03d_%s_LEFT.png", trialId, targetSymbol);
         rightFilename = sprintf("trial_%03d_%s_RIGHT.png", trialId, targetSymbol);
-        
+
         leftStimulusPath = fullfile(stimulusFolder, leftFilename);
         rightStimulusPath = fullfile(stimulusFolder, rightFilename);
-        
+
         imwrite(leftRGB, leftStimulusPath);
         imwrite(rightRGB, rightStimulusPath);
-        
-        % For now, keep sending the left image to Unity so the existing pipeline still works.
-        stimulusPath = leftStimulusPath;
 
-        msg = sprintf("TRIAL_START,%d,%g,%s,%s", trialId, value, targetSymbol, stimulusPath);
+        % Existing Unity pipeline receives one image path
+        msg = sprintf("TRIAL_START,%d,%g,%s,%s,%s",  trialId, value, targetSymbol, leftStimulusPath, rightStimulusPath);
 
         disp(" ");
         disp("Sending message:");
@@ -154,13 +195,11 @@ try
                         rtSeconds = str2double(parts(5));
                         unityStartTime = str2double(parts(6));
                         unityResponseTime = str2double(parts(7));
-                        
+
                         if numel(parts) >= 9
                             unityStartWallClock = parts(8);
                             unityResponseWallClock = parts(9);
                         else
-                            unityStartWallClock = "";
-                            unityResponseWallClock = "";
                             warning("Unity wall-clock fields were not received for trial %d.", trialId);
                         end
 
@@ -222,18 +261,13 @@ try
         pause(0.1);
     end
 
+    %% End experiment
     disp(" ");
     disp("Sending experiment end message...");
-    
+
     write(t, uint8(['EXPERIMENT_END' newline]));
-    
+
     pause(0.2);
-
-    outputFolder = "C:\Users\alice.cade\Documents\Stereoacuity_Unity\Participant_Data";
-
-    if ~exist(outputFolder, "dir")
-        mkdir(outputFolder);
-    end
 
     timestamp = datestr(now, "yyyymmdd_HHMMSS");
     safeParticipantId = regexprep(participantId, '[^\w\-]', '_');

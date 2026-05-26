@@ -11,8 +11,9 @@ public class ExperimentManager : MonoBehaviour
     [Header("Stimulus")]
     public GameObject stimulusCube;
 
-    [Header("Stimulus Image")]
-    public RawImage stimulusImage;
+    [Header("Stimulus Images")]
+    public RawImage leftStimulusImage;
+    public RawImage rightStimulusImage;
 
     [Header("Instruction Text")]
     public TextMeshProUGUI instructionText;
@@ -32,11 +33,7 @@ public class ExperimentManager : MonoBehaviour
 
     private void Start()
     {
-        if (stimulusCube != null)
-            stimulusCube.SetActive(false);
-
-        if (stimulusImage != null)
-            stimulusImage.gameObject.SetActive(false);
+        HideStimuli();
 
         if (responsePanel != null)
             responsePanel.SetActive(false);
@@ -54,7 +51,7 @@ public class ExperimentManager : MonoBehaviour
         }
     }
 
-    public void StartTrialFromTcp(int trialId, float value, string targetSymbol, string stimulusPath)
+    public void StartTrialFromTcp( int trialId,float value, string targetSymbol, string leftImagePath,  string rightImagePath)
     {
         if (trialRunning)
         {
@@ -69,12 +66,17 @@ public class ExperimentManager : MonoBehaviour
         currentTargetSymbol = targetSymbol;
 
         Debug.Log($"Target symbol for this trial: {currentTargetSymbol}");
-        Debug.Log($"Stimulus path: {stimulusPath}");
+        Debug.Log($"Left image path: {leftImagePath}");
+        Debug.Log($"Right image path: {rightImagePath}");
 
-        StartCoroutine(RunTrial(trialId, value, stimulusPath));
+        StartCoroutine(RunTrial(trialId, value, leftImagePath, rightImagePath));
     }
 
-    private IEnumerator RunTrial(int trialId, float value, string stimulusPath)
+    private IEnumerator RunTrial(
+        int trialId,
+        float value,
+        string leftImagePath,
+        string rightImagePath)
     {
         trialRunning = true;
         responseReceived = false;
@@ -82,11 +84,7 @@ public class ExperimentManager : MonoBehaviour
         response = "";
         responseTime = -1f;
 
-        if (stimulusCube != null)
-            stimulusCube.SetActive(false);
-
-        if (stimulusImage != null)
-            stimulusImage.gameObject.SetActive(false);
+        HideStimuli();
 
         if (responsePanel != null)
             responsePanel.SetActive(false);
@@ -111,19 +109,27 @@ public class ExperimentManager : MonoBehaviour
         if (instructionText != null)
             instructionText.gameObject.SetActive(false);
 
-        if (stimulusImage != null)
-        {
-            Texture2D tex = LoadTextureFromFile(stimulusPath);
+        Texture2D leftTex = LoadTextureFromFile(leftImagePath);
+        Texture2D rightTex = LoadTextureFromFile(rightImagePath);
 
-            if (tex != null)
-            {
-                stimulusImage.texture = tex;
-                stimulusImage.gameObject.SetActive(true);
-            }
-            else
-            {
-                Debug.LogError($"Could not load stimulus image: {stimulusPath}");
-            }
+        if (leftStimulusImage != null && leftTex != null)
+        {
+            leftStimulusImage.texture = leftTex;
+            leftStimulusImage.gameObject.SetActive(true);
+        }
+        else
+        {
+            Debug.LogError($"Could not load left image: {leftImagePath}");
+        }
+
+        if (rightStimulusImage != null && rightTex != null)
+        {
+            rightStimulusImage.texture = rightTex;
+            rightStimulusImage.gameObject.SetActive(true);
+        }
+        else
+        {
+            Debug.LogError($"Could not load right image: {rightImagePath}");
         }
 
         float trialStartTime = Time.realtimeSinceStartup;
@@ -141,11 +147,7 @@ public class ExperimentManager : MonoBehaviour
 
         yield return new WaitForSeconds(2f);
 
-        if (stimulusImage != null)
-            stimulusImage.gameObject.SetActive(false);
-
-        if (stimulusCube != null)
-            stimulusCube.SetActive(false);
+        HideStimuli();
 
         responseReceived = false;
 
@@ -157,6 +159,24 @@ public class ExperimentManager : MonoBehaviour
 
         while (!responseReceived)
         {
+            if (Keyboard.current != null)
+            {
+                if (Keyboard.current.bKey.wasPressedThisFrame)
+                    OnSymbolSelected("butterfly");
+
+                if (Keyboard.current.hKey.wasPressedThisFrame)
+                    OnSymbolSelected("heart");
+
+                if (Keyboard.current.oKey.wasPressedThisFrame)
+                    OnSymbolSelected("house");
+
+                if (Keyboard.current.dKey.wasPressedThisFrame)
+                    OnSymbolSelected("duck");
+
+                if (Keyboard.current.cKey.wasPressedThisFrame)
+                    OnSymbolSelected("car");
+            }
+
             yield return null;
         }
 
@@ -207,6 +227,18 @@ public class ExperimentManager : MonoBehaviour
         Debug.Log($"Participant selected: {selectedSymbol}");
     }
 
+    private void HideStimuli()
+    {
+        if (stimulusCube != null)
+            stimulusCube.SetActive(false);
+
+        if (leftStimulusImage != null)
+            leftStimulusImage.gameObject.SetActive(false);
+
+        if (rightStimulusImage != null)
+            rightStimulusImage.gameObject.SetActive(false);
+    }
+
     private Texture2D LoadTextureFromFile(string path)
     {
         if (!File.Exists(path))
@@ -230,11 +262,7 @@ public class ExperimentManager : MonoBehaviour
         trialRunning = false;
         responseReceived = false;
 
-        if (stimulusCube != null)
-            stimulusCube.SetActive(false);
-
-        if (stimulusImage != null)
-            stimulusImage.gameObject.SetActive(false);
+        HideStimuli();
 
         if (responsePanel != null)
             responsePanel.SetActive(false);

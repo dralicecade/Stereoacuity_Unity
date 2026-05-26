@@ -1,10 +1,10 @@
 using System;
+using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using UnityEngine;
-using System.Collections.Concurrent;
 using UnityEngine.Events;
 
 public class TcpServerManager : MonoBehaviour
@@ -12,37 +12,41 @@ public class TcpServerManager : MonoBehaviour
     [Header("TCP Settings")]
     public int port = 5005;
 
+    [Header("Experiment Manager")]
+    public ExperimentManager experimentManager;
+
     private TcpListener listener;
     private TcpClient client;
     private NetworkStream stream;
     private Thread listenerThread;
     private volatile bool running = false;
 
-    private ConcurrentQueue<string> messageQueue = new ConcurrentQueue<string>();
+    private readonly ConcurrentQueue<string> messageQueue = new ConcurrentQueue<string>();
 
     [System.Serializable]
     public class ExperimentEndEvent : UnityEvent { }
 
-    public ExperimentEndEvent OnExperimentEnd;
 
-    [System.Serializable]
-    public class TrialStartEvent : UnityEvent<int, float, string, string> { }
 
     [Header("Events")]
-    public TrialStartEvent OnTrialStart;
+    public ExperimentEndEvent OnExperimentEnd;
 
-    void Start()
+
+    private void Start()
     {
         StartServer();
     }
 
-    void OnApplicationQuit()
+    private void OnApplicationQuit()
     {
         StopServer();
     }
 
     public void StartServer()
     {
+        if (running)
+            return;
+
         running = true;
 
         listenerThread = new Thread(ListenForClient);
@@ -68,7 +72,7 @@ public class TcpServerManager : MonoBehaviour
 
                 Debug.Log("MATLAB connected to Unity TCP server.");
 
-                byte[] buffer = new byte[1024];
+                byte[] buffer = new byte[4096];
 
                 while (running && client.Connected)
                 {
@@ -80,7 +84,6 @@ public class TcpServerManager : MonoBehaviour
                         {
                             string message = Encoding.UTF8.GetString(buffer, 0, bytesRead).Trim();
                             Debug.Log("Received TCP message: " + message);
-
                             messageQueue.Enqueue(message);
                         }
                     }
@@ -91,17 +94,21 @@ public class TcpServerManager : MonoBehaviour
         }
         catch (Exception e)
         {
-            Debug.LogError("TCP Server error: " + e.Message);
+            if (running)
+                Debug.LogError("TCP Server error: " + e.Message);
+        }
+    }
+
+    private void Update()
+    {
+        while (messageQueue.TryDequeue(out string message))
+        {
+            HandleMessage(message);
         }
     }
 
     private void HandleMessage(string message)
     {
-        // Expected format:
-        // TRIAL_START,1,40
-
-        string[] parts = message.Split(',');
-
         if (message == "EXPERIMENT_END")
         {
             Debug.Log("Experiment end message received.");
@@ -110,41 +117,60 @@ public class TcpServerManager : MonoBehaviour
             return;
         }
 
-        if (parts.Length < 5)
+        string[] parts = message.Split(',');
+
+        if (parts.Length < 6)
         {
+            Debug.LogError("Invalid TCP message: " + message);
             SendMessageToClient("ERROR,INVALID_MESSAGE");
             return;
         }
 
         string command = parts[0];
-        string trialId = parts[1];
-        string value = parts[2];
+        string trialIdText = parts[1];
+        string valueText = parts[2];
         string targetSymbol = parts[3];
-        string stimulusPath = parts[4];
+        string leftImagePath = parts[4];
+        string rightImagePath = parts[5];
 
-        if (command == "TRIAL_START")
+        if (command != "TRIAL_START")
         {
-            if (!int.TryParse(trialId, out int parsedTrialId))
-            {
-                SendMessageToClient($"ERROR,{trialId},INVALID_TRIAL_ID");
-                return;
-            }
+            SendMessageToClient($"ERROR,{trialIdText},UNKNOWN_COMMAND");
+            return;
+        }
 
-            if (!float.TryParse(value, out float parsedValue))
-            {
-                SendMessageToClient($"ERROR,{trialId},INVALID_VALUE");
-                return;
-            }
+        if (!int.TryParse(trialIdText, out int trialId))
+        {
+            SendMessageToClient($"ERROR,{trialIdText},INVALID_TRIAL_ID");
+            return;
+        }
 
-            Debug.Log($"Triggering trial. Trial ID: {parsedTrialId}, Value: {parsedValue}, Symbol: {targetSymbol}, Path: {stimulusPath}");
+        if (!float.TryParse(valueText, out float value))
+        {
+            SendMessageToClient($"ERROR,{trialIdText},INVALID_VALUE");
+            return;
+        }
 
-            OnTrialStart?.Invoke(parsedTrialId, parsedValue, targetSymbol, stimulusPath);
+        Debug.Log(
+            $"Triggering trial. Trial ID: {trialId}, " +
+            $"Value: {value}, Symbol: {targetSymbol}, " +
+            $"Left: {leftImagePath}, Right: {rightImagePath}"
+        );
 
-            SendMessageToClient($"TRIAL_STARTED,{parsedTrialId},OK");
+        if (experimentManager != null)
+        {
+            experimentManager.StartTrialFromTcp(
+                trialId,
+                value,
+                targetSymbol,
+                leftImagePath,
+                rightImagePath
+            );
         }
         else
         {
-            SendMessageToClient($"ERROR,{trialId},UNKNOWN_COMMAND");
+            Debug.LogError("ExperimentManager reference is missing on TcpServerManager.");
+            SendMessageToClient($"ERROR,{trialId},NO_EXPERIMENT_MANAGER");
         }
     }
 
@@ -178,24 +204,13 @@ public class TcpServerManager : MonoBehaviour
             listener?.Stop();
 
             if (listenerThread != null && listenerThread.IsAlive)
-                {
-                    listenerThread.Join(500);
-                }
+                listenerThread.Join(500);
         }
         catch (Exception e)
-            {
-                if (running)
-                Debug.LogError("TCP Server error: " + e.Message);
-            }
+        {
+            Debug.LogError("TCP stop error: " + e.Message);
+        }
 
         Debug.Log("TCP Server stopped.");
-    }
-
-    void Update()
-    {
-        while (messageQueue.TryDequeue(out string message))
-        {
-            HandleMessage(message);
-        }
     }
 }
