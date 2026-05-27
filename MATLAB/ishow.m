@@ -1,0 +1,1 @@
+function ishow(Object)[m n p]=size(Object);Object=real(Object);if (p==1)	imshow(NormImage(double(Object)),gray(256));else%	imshow(NormImage(double(Object)),gray(256));   colorM=repmat([0:255],[3 1])'./255;	imshow((Object),colorM); ;endshg

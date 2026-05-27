@@ -1,6 +1,0 @@
-trialId,value,response,rtSeconds,unityStartTime,unityResponseTime,matlabSendTime,matlabReceiveTime
-1,40,TIMEOUT,NaN,NaN,NaN,18-May-2026 13:39:59,18-May-2026 13:40:09
-2,-40,TIMEOUT,NaN,NaN,NaN,18-May-2026 13:40:10,18-May-2026 13:40:20
-3,20,TIMEOUT,NaN,NaN,NaN,18-May-2026 13:40:21,18-May-2026 13:40:31
-4,-20,TIMEOUT,NaN,NaN,NaN,18-May-2026 13:40:31,18-May-2026 13:40:41
-5,0,TIMEOUT,NaN,NaN,NaN,18-May-2026 13:40:42,18-May-2026 13:40:52
