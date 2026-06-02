@@ -131,8 +131,23 @@ try
         rightPatch(symbolMask) = rightPatch(symbolMask) * symbolContrast;
         rightImg(rows, rightCols) = rightPatch;
 
-        leftRGB = uint8(255 * repmat(leftImg, 1, 1, 3));
-        rightRGB = uint8(255 * repmat(rightImg, 1, 1, 3));
+        % leftRGB = uint8(255 * repmat(leftImg, 1, 1, 3));
+        % rightRGB = uint8(255 * repmat(rightImg, 1, 1, 3));
+
+        canvasSize = 600;
+
+        leftRGB = uint8(255 * ones(canvasSize, canvasSize, 3));
+        rightRGB = uint8(255 * ones(canvasSize, canvasSize, 3));
+        
+        leftRGB = insertText(leftRGB, [180 200], 'L', ...
+            'FontSize', 180, ...
+            'BoxOpacity', 0, ...
+            'TextColor', 'black');
+        
+        rightRGB = insertText(rightRGB, [180 200], 'R', ...
+            'FontSize', 180, ...
+            'BoxOpacity', 0, ...
+            'TextColor', 'black');
 
         leftFilename = sprintf("trial_%03d_%s_LEFT.png", trialId, targetSymbol);
         rightFilename = sprintf("trial_%03d_%s_RIGHT.png", trialId, targetSymbol);

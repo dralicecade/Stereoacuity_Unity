@@ -42,14 +42,19 @@ public class ExperimentManager : MonoBehaviour
         {
             instructionText.gameObject.SetActive(true);
             instructionText.text =
-                "Stereoacuity Test\n\n" +
                 "You will see a hidden shape briefly appear on the screen.\n" +
-                "Try to keep your head still and look toward the centre of the screen.\n" +
                 "After each trial, select the symbol you saw.\n" +
                 "If you are unsure, please make your best guess.\n" +
                 "Waiting to begin...";
         }
+
+        Cursor.visible = true;
+        Cursor.lockState = CursorLockMode.None;
+
+        Debug.Log("Cursor enabled");
     }
+
+
 
     public void StartTrialFromTcp( int trialId,float value, string targetSymbol, string leftImagePath,  string rightImagePath)
     {
@@ -147,6 +152,7 @@ public class ExperimentManager : MonoBehaviour
 
         yield return new WaitForSeconds(2f);
 
+
         HideStimuli();
 
         responseReceived = false;
@@ -161,20 +167,16 @@ public class ExperimentManager : MonoBehaviour
         {
             if (Keyboard.current != null)
             {
-                if (Keyboard.current.bKey.wasPressedThisFrame)
-                    OnSymbolSelected("butterfly");
-
-                if (Keyboard.current.hKey.wasPressedThisFrame)
-                    OnSymbolSelected("heart");
-
-                if (Keyboard.current.oKey.wasPressedThisFrame)
-                    OnSymbolSelected("house");
-
-                if (Keyboard.current.dKey.wasPressedThisFrame)
-                    OnSymbolSelected("duck");
-
-                if (Keyboard.current.cKey.wasPressedThisFrame)
-                    OnSymbolSelected("car");
+                if (Keyboard.current.bKey.wasPressedThisFrame) OnSymbolSelected("butterfly");
+                if (Keyboard.current.mKey.wasPressedThisFrame) OnSymbolSelected("moon");
+                if (Keyboard.current.cKey.wasPressedThisFrame) OnSymbolSelected("car");
+                if (Keyboard.current.dKey.wasPressedThisFrame) OnSymbolSelected("duck");
+                if (Keyboard.current.fKey.wasPressedThisFrame) OnSymbolSelected("flower");
+                if (Keyboard.current.hKey.wasPressedThisFrame) OnSymbolSelected("heart");
+                if (Keyboard.current.oKey.wasPressedThisFrame) OnSymbolSelected("house");
+                if (Keyboard.current.rKey.wasPressedThisFrame) OnSymbolSelected("rabbit");
+                if (Keyboard.current.tKey.wasPressedThisFrame) OnSymbolSelected("tree");
+                if (Keyboard.current.kKey.wasPressedThisFrame) OnSymbolSelected("rocket");
             }
 
             yield return null;
