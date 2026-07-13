@@ -10,6 +10,7 @@ public class EyeTrackingManager : MonoBehaviour
     public Vector3 gazeDirection;
     public Vector2 gazePoint;
     public Ray gazeRay;
+    private float nextLogTime;
 
     private void OnEnable()
     {
@@ -32,6 +33,11 @@ public class EyeTrackingManager : MonoBehaviour
         gazeDirection = gazeRay.direction;
         gazePoint = provider.RawGazePoint;
 
-        Debug.Log($"Gaze: origin={gazeOrigin}, dir={gazeDirection}, point={gazePoint}");
+        //Debug.Log($"Gaze: origin={gazeOrigin}, dir={gazeDirection}, point={gazePoint}");
+        if (Time.time >= nextLogTime)
+        {
+            Debug.Log($"Gaze: origin={gazeOrigin}, dir={gazeDirection}, point={gazePoint}");
+            nextLogTime = Time.time + 1f;
+        }
     }
 }
