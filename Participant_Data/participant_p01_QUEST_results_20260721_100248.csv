@@ -1,0 +1,3 @@
+participantId,trialId,targetSymbol,response,accuracy,correct,questLogIntensity,stimOffsetPix,rtSeconds,matlabSendTime,matlabReceiveTime
+p01,1,rabbit,butterfly,INCORRECT,0,-0.868476141895316,1.08296356384887,5.024395,2026-07-21 10:02:33.700,2026-07-21 10:02:42.243
+p01,2,rabbit,rabbit,CORRECT,1,0.182191913403729,12.1697568281573,3.163795,2026-07-21 10:02:42.839,2026-07-21 10:02:48.038

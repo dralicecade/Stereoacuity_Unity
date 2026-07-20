@@ -883,6 +883,7 @@ MonoBehaviour:
   instructionText: {fileID: 1753926342}
   responsePanel: {fileID: 300850762}
   tcpServer: {fileID: 754175663}
+  gazeRecorder: {fileID: 1302221845}
 --- !u!4 &575841752
 Transform:
   m_ObjectHideFlags: 0
@@ -3545,6 +3546,53 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 1200, y: 1200}
   m_Pivot: {x: 0.5, y: 0.5}
+--- !u!1 &1302221844
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1302221846}
+  - component: {fileID: 1302221845}
+  m_Layer: 0
+  m_Name: GazeStreamRecorder
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1302221845
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1302221844}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 81a215d63e4568f4eac3cc43c6650796, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GazeStreamRecorder
+  eyeTrackingManager: {fileID: 1412320017}
+  startRecordingAutomatically: 1
+  flushIntervalSeconds: 1
+--- !u!4 &1302221846
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1302221844}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 1.1176, z: 3}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1305170768
 GameObject:
   m_ObjectHideFlags: 0
@@ -3879,6 +3927,7 @@ MonoBehaviour:
   gazeOrigin: {x: 0, y: 0, z: 0}
   gazeDirection: {x: 0, y: 0, z: 0}
   gazePoint: {x: 0, y: 0}
+  gazeSamplesReceived: 0
 --- !u!4 &1412320018
 Transform:
   m_ObjectHideFlags: 0
@@ -5819,3 +5868,4 @@ SceneRoots:
   - {fileID: 1412320018}
   - {fileID: 504093093}
   - {fileID: 1825724727}
+  - {fileID: 1302221846}
